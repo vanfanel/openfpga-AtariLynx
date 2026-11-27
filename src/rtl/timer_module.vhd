@@ -22,6 +22,9 @@ entity timer_module is
       reset          : in  std_logic;
       fastforward    : in  std_logic;
       turbo          : in  std_logic;
+      video_stretch  : in  std_logic;
+      video_bkup     : out std_logic_vector(7 downto 0);
+      video_ctla     : out std_logic_vector(7 downto 0);
                      
       RegBus_Din     : in  std_logic_vector(BUS_buswidth-1 downto 0);
       RegBus_Adr     : in  std_logic_vector(BUS_busadr-1 downto 0);
@@ -109,6 +112,9 @@ begin
    
    tick <= borrow_out;
    
+   video_bkup <= Reg_BKUP;
+   video_ctla <= Reg_CTLA;
+
    timer_reload <= Reg_CTLA(4);
    timer_enaIRQ <= Reg_CTLA(7);
    
@@ -125,7 +131,20 @@ begin
    begin
       if rising_edge(clk) then
          
-         if (index = 4) then
+         if (index = 0 and video_stretch = '1') then
+            -- Increase only the horizontal timer tick period by 5/4.
+            -- Inclusive prescaler limits: 16 -> 20, 32 -> 40, etc.
+            case (to_integer(unsigned(Reg_CTLA(2 downto 0)))) is
+               when 0 => prescaleborder <= 19;
+               when 1 => prescaleborder <= 39;
+               when 2 => prescaleborder <= 79;
+               when 3 => prescaleborder <= 159;
+               when 4 => prescaleborder <= 319;
+               when 5 => prescaleborder <= 639;
+               when 6 => prescaleborder <= 1279;
+               when others => null;
+            end case;
+         elsif (index = 4) then
             case (to_integer(unsigned(Reg_CTLA(2 downto 0)))) is
                when 0 => prescaleborder <= 127;
                when 1 => prescaleborder <= 255;

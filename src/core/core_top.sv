@@ -718,6 +718,7 @@ LynxTop LynxTop (
   .reset_in         ( reset  ),
   .pause_in         ( paused ),
   .audio_ce_independent (sync60hz && !osnotify_inmenu),
+  .video_60hz_adapt  (sync60hz),
    
   // rom
   .rom_addr         ( rom_addr ),

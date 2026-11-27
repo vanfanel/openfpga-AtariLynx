@@ -16,6 +16,7 @@ entity timer is
       reset          : in  std_logic;
       fastforward    : in  std_logic;
       turbo          : in  std_logic;
+      video_60hz_adapt : in std_logic;
                      
       RegBus_Din     : in  std_logic_vector(BUS_buswidth-1 downto 0);
       RegBus_Adr     : in  std_logic_vector(BUS_busadr-1 downto 0);
@@ -63,6 +64,14 @@ architecture arch of timer is
    signal irq_status : std_logic_vector(7 downto 0);
    signal newstatus  : std_logic_vector(7 downto 0);
    signal irq_onbits : std_logic_vector(7 downto 0);
+
+   -- Use the programmed native period, not the already stretched frame
+   -- period. This avoids oscillating between native and adapted modes.
+   signal video_bkup0, video_bkup2 : std_logic_vector(7 downto 0);
+   signal video_ctla0, video_ctla2 : std_logic_vector(7 downto 0);
+   signal video_line_counts : unsigned(17 downto 0);
+   signal video_native_cycles : unsigned(26 downto 0);
+   signal video_stretch : std_logic;
    
    -- savestates
    type t_ss_wired_or is array(0 to 8) of std_logic_vector(63 downto 0);
@@ -77,6 +86,25 @@ begin
 
    iReg_INTRST : entity work.eReg generic map ( INTRST ) port map (clk, RegBus_Din, RegBus_Adr, RegBus_wren, RegBus_rst, reg_wired_or(8), irq_status, Reg_INTRST, Reg_INTRST_written);  
    iReg_INTSET : entity work.eReg generic map ( INTSET ) port map (clk, RegBus_Din, RegBus_Adr, RegBus_wren, RegBus_rst, reg_wired_or(9), irq_status, Reg_INTSET, Reg_INTSET_written);  
+
+   -- Timer 0 uses 16 * 2^clock_select master cycles per tick.
+   -- Both reload counters count inclusively, and timer 2 is linked to 0.
+   video_line_counts <= (resize(unsigned(video_bkup0), 9) + 1) *
+                        (resize(unsigned(video_bkup2), 9) + 1);
+   video_native_cycles <= shift_left(resize(video_line_counts, 27),
+                                    4 + to_integer(unsigned(video_ctla0(2 downto 0))));
+
+   -- The 75 Hz family (roughly 69.6..75.8 Hz) becomes 55.7..60.7 Hz,
+   -- within the existing Pocket VRR window. Leave 50/60 Hz untouched.
+   -- Do not change timer 2's reload or register readback, or the DMA line count.
+   video_stretch <= '1' when video_60hz_adapt = '1' and
+                             fastforward = '0' and turbo = '0' and
+                             video_ctla0(4 downto 3) = "11" and
+                             video_ctla0(2 downto 0) /= "111" and
+                             video_ctla2(4 downto 0) = "11111" and
+                             video_native_cycles >= to_unsigned(211000, 27) and
+                             video_native_cycles <= to_unsigned(230000, 27)
+                    else '0';
 
    displayLine <= timerticks(0);
    frameEnd    <= timerticks(2);
@@ -111,6 +139,9 @@ begin
       reset             => reset,
       fastforward       => fastforward,
       turbo             => turbo,
+      video_stretch     => video_stretch,
+      video_bkup        => video_bkup0,
+      video_ctla        => video_ctla0,
                         
       RegBus_Din        => RegBus_Din, 
       RegBus_Adr        => RegBus_Adr, 
@@ -143,6 +174,9 @@ begin
       reset             => reset,
       fastforward       => fastforward,
       turbo             => turbo,
+      video_stretch     => '0',
+      video_bkup        => open,
+      video_ctla        => open,
                         
       RegBus_Din        => RegBus_Din, 
       RegBus_Adr        => RegBus_Adr, 
@@ -174,6 +208,9 @@ begin
       reset             => reset,
       fastforward       => fastforward,
       turbo             => turbo,
+      video_stretch     => '0',
+      video_bkup        => video_bkup2,
+      video_ctla        => video_ctla2,
                         
       RegBus_Din        => RegBus_Din, 
       RegBus_Adr        => RegBus_Adr, 
@@ -205,6 +242,9 @@ begin
       reset             => reset,
       fastforward       => fastforward,
       turbo             => turbo,
+      video_stretch     => '0',
+      video_bkup        => open,
+      video_ctla        => open,
                         
       RegBus_Din        => RegBus_Din, 
       RegBus_Adr        => RegBus_Adr, 
@@ -236,6 +276,9 @@ begin
       reset             => reset,
       fastforward       => fastforward,
       turbo             => turbo,
+      video_stretch     => '0',
+      video_bkup        => open,
+      video_ctla        => open,
                         
       RegBus_Din        => RegBus_Din, 
       RegBus_Adr        => RegBus_Adr, 
@@ -270,6 +313,9 @@ begin
       reset             => reset,
       fastforward       => fastforward,
       turbo             => turbo,
+      video_stretch     => '0',
+      video_bkup        => open,
+      video_ctla        => open,
                         
       RegBus_Din        => RegBus_Din, 
       RegBus_Adr        => RegBus_Adr, 
@@ -301,6 +347,9 @@ begin
       reset             => reset,
       fastforward       => fastforward,
       turbo             => turbo,
+      video_stretch     => '0',
+      video_bkup        => open,
+      video_ctla        => open,
                         
       RegBus_Din        => RegBus_Din, 
       RegBus_Adr        => RegBus_Adr, 
@@ -332,6 +381,9 @@ begin
       reset             => reset,
       fastforward       => fastforward,
       turbo             => turbo,
+      video_stretch     => '0',
+      video_bkup        => open,
+      video_ctla        => open,
                         
       RegBus_Din        => RegBus_Din, 
       RegBus_Adr        => RegBus_Adr, 

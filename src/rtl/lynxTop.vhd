@@ -17,6 +17,7 @@ entity LynxTop is
       reset_in                   : in  std_logic;
       pause_in                   : in  std_logic;
       audio_ce_independent       : in  std_logic; -- Keep Mikey audio at native rate during 60Hz video sync
+      video_60hz_adapt           : in  std_logic; -- Adapt high-rate linked display timers
 
       -- rom
       rom_addr                   : out std_logic_vector(19 downto 0);
@@ -372,6 +373,7 @@ begin
       reset             => reset,
       fastforward       => fastforward,
       turbo             => turbo,
+      video_60hz_adapt  => video_60hz_adapt,
 
       RegBus_Din        => RegBus_Din,
       RegBus_Adr        => RegBus_Adr,
